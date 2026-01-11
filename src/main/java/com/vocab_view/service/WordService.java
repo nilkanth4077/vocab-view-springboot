@@ -14,10 +14,12 @@ public class WordService {
 
     private final WordRepository wordRepository;
     private final KeyGenerator keyGenerator;
+    private final WordCacheService cache;
 
-    public WordService(WordRepository wordRepository, KeyGenerator keyGenerator) {
+    public WordService(WordRepository wordRepository, KeyGenerator keyGenerator, WordCacheService cache) {
         this.wordRepository = wordRepository;
         this.keyGenerator = keyGenerator;
+        this.cache = cache;
     }
 
     // 🔍 Fetch synonyms & antonyms
@@ -87,7 +89,9 @@ public class WordService {
             word.setAntonymKey(antKey);
         }
 
-        return wordRepository.save(word);
+        Word saved = wordRepository.save(word);
+        cache.refreshCache();
+        return saved;
     }
 
     public List<WordResponse> getAllWords() {
@@ -101,4 +105,5 @@ public class WordService {
                 ))
                 .toList();
     }
+
 }

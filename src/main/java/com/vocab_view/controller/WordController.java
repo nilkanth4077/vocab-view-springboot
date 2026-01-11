@@ -2,21 +2,24 @@ package com.vocab_view.controller;
 
 import com.vocab_view.dto.AddWordRequest;
 import com.vocab_view.dto.WordResponse;
+import com.vocab_view.service.WordCacheService;
 import com.vocab_view.service.WordService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "https://vocab-view.vercel.app/")
+@CrossOrigin(origins = {"https://vocab-view.vercel.app/", "http://localhost:5173/"})
 @RestController
 @RequestMapping("/api/words")
 public class WordController {
 
     private final WordService wordService;
+    private final WordCacheService cacheService;
 
-    public WordController(WordService wordService) {
+    public WordController(WordService wordService, WordCacheService cacheService) {
         this.wordService = wordService;
+        this.cacheService = cacheService;
     }
 
     // Fetch synonyms & antonyms
@@ -41,4 +44,10 @@ public class WordController {
     public ResponseEntity<List<WordResponse>> getAllWords() {
         return ResponseEntity.ok(wordService.getAllWords());
     }
+
+    @GetMapping("/suggest")
+    public List<String> suggest(@RequestParam String q) {
+        return cacheService.suggest(q);
+    }
+
 }
