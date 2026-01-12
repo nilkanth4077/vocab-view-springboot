@@ -47,52 +47,52 @@ public class WordService {
         );
     }
 
-    public Word addWord(String text,
-                        String partOfSpeech,
-                        String synonymReference,
-                        String antonymReference) {
-
-        if (wordRepository.findByTextIgnoreCase(text).isPresent()) {
-            throw new RuntimeException("Word already exists");
-        }
-
-        Word word = new Word();
-        word.setText(text.toLowerCase());
-        word.setPartOfSpeech(partOfSpeech);
-
-        // 1️⃣ Synonym reference
-        if (synonymReference != null) {
-
-            Word ref = wordRepository.findByTextIgnoreCase(synonymReference)
-                    .orElseThrow(() -> new RuntimeException("Synonym reference not found"));
-
-            word.setSynonymKey(ref.getSynonymKey());
-            word.setAntonymKey(ref.getAntonymKey());
-        }
-
-        // 2️⃣ Antonym reference (CRITICAL FIX)
-        else if (antonymReference != null) {
-
-            Word ref = wordRepository.findByTextIgnoreCase(antonymReference)
-                    .orElseThrow(() -> new RuntimeException("Antonym reference not found"));
-
-            word.setSynonymKey(ref.getAntonymKey());
-            word.setAntonymKey(ref.getSynonymKey());
-        }
-
-        // 3️⃣ Brand new word
-        else {
-            String synKey = keyGenerator.generateSynonymKey();
-            String antKey = keyGenerator.generateAntonymKey();
-
-            word.setSynonymKey(synKey);
-            word.setAntonymKey(antKey);
-        }
-
-        Word saved = wordRepository.save(word);
-        cache.refreshCache();
-        return saved;
-    }
+//    public Word addWord(String text,
+//                        String partOfSpeech,
+//                        String synonymReference,
+//                        String antonymReference) {
+//
+//        if (wordRepository.findByTextIgnoreCase(text).isPresent()) {
+//            throw new RuntimeException("Word already exists");
+//        }
+//
+//        Word word = new Word();
+//        word.setText(text.toLowerCase());
+//        word.setPartOfSpeech(partOfSpeech);
+//
+//        // 1️⃣ Synonym reference
+//        if (synonymReference != null) {
+//
+//            Word ref = wordRepository.findByTextIgnoreCase(synonymReference)
+//                    .orElseThrow(() -> new RuntimeException("Synonym reference not found"));
+//
+//            word.setSynonymKey(ref.getSynonymKey());
+//            word.setAntonymKey(ref.getAntonymKey());
+//        }
+//
+//        // 2️⃣ Antonym reference (CRITICAL FIX)
+//        else if (antonymReference != null) {
+//
+//            Word ref = wordRepository.findByTextIgnoreCase(antonymReference)
+//                    .orElseThrow(() -> new RuntimeException("Antonym reference not found"));
+//
+//            word.setSynonymKey(ref.getAntonymKey());
+//            word.setAntonymKey(ref.getSynonymKey());
+//        }
+//
+//        // 3️⃣ Brand new word
+//        else {
+//            String synKey = keyGenerator.generateSynonymKey();
+//            String antKey = keyGenerator.generateAntonymKey();
+//
+//            word.setSynonymKey(synKey);
+//            word.setAntonymKey(antKey);
+//        }
+//
+//        Word saved = wordRepository.save(word);
+//        cache.refreshCache();
+//        return saved;
+//    }
 
     public List<WordResponse> getAllWords() {
         return wordRepository.findAll()
@@ -105,5 +105,103 @@ public class WordService {
                 ))
                 .toList();
     }
+
+    public Word addWord(String text,
+                        String partOfSpeech,
+                        String synonymReference,
+                        String antonymReference) {
+
+        List<Word> saved = addWordsInternal(
+                List.of(text),
+                partOfSpeech,
+                synonymReference,
+                antonymReference
+        );
+
+        return saved.get(0);
+    }
+
+    // ✅ Bulk-word API
+    public List<Word> addWordsBulk(List<String> words,
+                                   String partOfSpeech,
+                                   String synonymReference,
+                                   String antonymReference) {
+
+        return addWordsInternal(
+                words,
+                partOfSpeech,
+                synonymReference,
+                antonymReference
+        );
+    }
+
+    // 🔥 SINGLE SOURCE OF TRUTH
+    private List<Word> addWordsInternal(List<String> words,
+                                        String partOfSpeech,
+                                        String synonymReference,
+                                        String antonymReference) {
+
+        // 🔍 Duplicate check
+        for (String text : words) {
+            if (wordRepository.findByTextIgnoreCase(text).isPresent()) {
+                throw new RuntimeException("Word already exists: " + text);
+            }
+        }
+
+        // 🔑 Resolve keys ONCE
+        KeyPair keys = resolveKeys(synonymReference, antonymReference);
+
+        List<Word> entities = words.stream().map(text -> {
+            Word word = new Word();
+            word.setText(text.toLowerCase());
+            word.setPartOfSpeech(partOfSpeech);
+            word.setSynonymKey(keys.synonymKey());
+            word.setAntonymKey(keys.antonymKey());
+            return word;
+        }).toList();
+
+        List<Word> saved = wordRepository.saveAll(entities);
+        cache.refreshCache();
+        return saved;
+    }
+
+    // 🧠 EXACT SAME LOGIC YOU WROTE (JUST EXTRACTED)
+    private KeyPair resolveKeys(String synonymReference, String antonymReference) {
+
+        // 1️⃣ Synonym reference
+        if (synonymReference != null) {
+
+            Word ref = wordRepository.findByTextIgnoreCase(synonymReference)
+                    .orElseThrow(() -> new RuntimeException("Synonym reference not found"));
+
+            return new KeyPair(
+                    ref.getSynonymKey(),
+                    ref.getAntonymKey()
+            );
+        }
+
+        // 2️⃣ Antonym reference
+        if (antonymReference != null) {
+
+            Word ref = wordRepository.findByTextIgnoreCase(antonymReference)
+                    .orElseThrow(() -> new RuntimeException("Antonym reference not found"));
+
+            // 🔥 CRITICAL inversion preserved
+            return new KeyPair(
+                    ref.getAntonymKey(),
+                    ref.getSynonymKey()
+            );
+        }
+
+        // 3️⃣ Brand new word group
+        return new KeyPair(
+                keyGenerator.generateSynonymKey(),
+                keyGenerator.generateAntonymKey()
+        );
+    }
+
+    // 🔹 Tiny immutable helper
+    private record KeyPair(String synonymKey, String antonymKey) {}
+
 
 }
