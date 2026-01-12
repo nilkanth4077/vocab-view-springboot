@@ -17,7 +17,6 @@ public class WordService {
     private final WordRepository wordRepository;
     private final KeyGenerator keyGenerator;
     private final WordCacheService cache;
-    private final Random random = new Random();
 
     public WordService(WordRepository wordRepository, KeyGenerator keyGenerator, WordCacheService cache) {
         this.wordRepository = wordRepository;
@@ -26,7 +25,7 @@ public class WordService {
     }
 
     // 🔍 Fetch synonyms & antonyms
-    public Map<String, List<String>> getSynonymsAndAntonyms(String wordText) {
+    public WordDto getSynonymsAndAntonyms(String wordText) {
 
         Word word = wordRepository.findByTextIgnoreCase(wordText)
                 .orElseThrow(() -> new RuntimeException("Word not found"));
@@ -44,10 +43,13 @@ public class WordService {
                 .map(Word::getText)
                 .toList();
 
-        return Map.of(
-                "synonyms", synonyms,
-                "antonyms", antonyms
-        );
+        WordDto res = new WordDto();
+        res.setWord(wordText);
+        res.setPartOfSpeech(word.getPartOfSpeech());
+        res.setSynonyms(synonyms);
+        res.setAntonyms(antonyms);
+
+        return res;
     }
 
 //    public Word addWord(String text,
@@ -205,24 +207,5 @@ public class WordService {
 
     // 🔹 Tiny immutable helper
     private record KeyPair(String synonymKey, String antonymKey) {}
-
-    public WordDto getRandomWord() {
-        List<Word> allWords = wordRepository.findAll();
-
-        if (allWords.isEmpty()) {
-            throw new RuntimeException("No words available");
-        }
-
-        // pick random
-        Word chosen = allWords.get(random.nextInt(allWords.size()));
-
-        // map to DTO
-        List<String> synonyms = wordRepository.findBySynonymKey(chosen.getSynonymKey())
-                .stream().map(Word::getText).toList();
-        List<String> antonyms = wordRepository.findByAntonymKey(chosen.getAntonymKey())
-                .stream().map(Word::getText).toList();
-
-        return new WordDto(chosen.getText(), chosen.getPartOfSpeech(), synonyms, antonyms);
-    }
 
 }

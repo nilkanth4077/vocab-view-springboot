@@ -5,12 +5,15 @@ import com.vocab_view.dto.BulkWordRequest;
 import com.vocab_view.dto.WordDto;
 import com.vocab_view.dto.WordResponse;
 import com.vocab_view.entity.Word;
+import com.vocab_view.repository.WordRepository;
 import com.vocab_view.service.WordCacheService;
 import com.vocab_view.service.WordService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 @CrossOrigin(origins = {"https://vocab-view.vercel.app/", "http://localhost:5173/"})
 @RestController
@@ -19,10 +22,13 @@ public class WordController {
 
     private final WordService wordService;
     private final WordCacheService cacheService;
+    private final WordRepository wordRepository;
+    private final Random random = new Random();
 
-    public WordController(WordService wordService, WordCacheService cacheService) {
+    public WordController(WordService wordService, WordCacheService cacheService, WordRepository wordRepository) {
         this.wordService = wordService;
         this.cacheService = cacheService;
+        this.wordRepository = wordRepository;
     }
 
     // Fetch synonyms & antonyms
@@ -72,8 +78,15 @@ public class WordController {
     }
 
     @GetMapping("/revise")
-    public ResponseEntity<WordDto> getRandomWord() {
-        WordDto word = wordService.getRandomWord();
-        return ResponseEntity.ok(word);
+    public ResponseEntity<?> getRandomWord() {
+        List<Word> allWords = wordRepository.findAll();
+
+        if (allWords.isEmpty()) {
+            throw new RuntimeException("No words available");
+        }
+
+        // pick random
+        Word chosen = allWords.get(random.nextInt(allWords.size()));
+        return ResponseEntity.ok(wordService.getSynonymsAndAntonyms(chosen.getText()));
     }
 }
