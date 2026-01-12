@@ -2,6 +2,7 @@ package com.vocab_view.controller;
 
 import com.vocab_view.dto.AddWordRequest;
 import com.vocab_view.dto.BulkWordRequest;
+import com.vocab_view.dto.WordDto;
 import com.vocab_view.dto.WordResponse;
 import com.vocab_view.entity.Word;
 import com.vocab_view.service.WordCacheService;
@@ -70,4 +71,9 @@ public class WordController {
         return cacheService.suggest(q);
     }
 
+    @GetMapping("/revise")
+    public ResponseEntity<WordDto> getRandomWord() {
+        WordDto word = wordService.getRandomWord();
+        return ResponseEntity.ok(word);
+    }
 }

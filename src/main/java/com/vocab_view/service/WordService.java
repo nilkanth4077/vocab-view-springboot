@@ -1,6 +1,7 @@
 package com.vocab_view.service;
 
 import com.vocab_view.components.KeyGenerator;
+import com.vocab_view.dto.WordDto;
 import com.vocab_view.dto.WordResponse;
 import com.vocab_view.entity.Word;
 import com.vocab_view.repository.WordRepository;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 @Service
 public class WordService {
@@ -15,6 +17,7 @@ public class WordService {
     private final WordRepository wordRepository;
     private final KeyGenerator keyGenerator;
     private final WordCacheService cache;
+    private final Random random = new Random();
 
     public WordService(WordRepository wordRepository, KeyGenerator keyGenerator, WordCacheService cache) {
         this.wordRepository = wordRepository;
@@ -203,5 +206,23 @@ public class WordService {
     // 🔹 Tiny immutable helper
     private record KeyPair(String synonymKey, String antonymKey) {}
 
+    public WordDto getRandomWord() {
+        List<Word> allWords = wordRepository.findAll();
+
+        if (allWords.isEmpty()) {
+            throw new RuntimeException("No words available");
+        }
+
+        // pick random
+        Word chosen = allWords.get(random.nextInt(allWords.size()));
+
+        // map to DTO
+        List<String> synonyms = wordRepository.findBySynonymKey(chosen.getSynonymKey())
+                .stream().map(Word::getText).toList();
+        List<String> antonyms = wordRepository.findByAntonymKey(chosen.getAntonymKey())
+                .stream().map(Word::getText).toList();
+
+        return new WordDto(chosen.getText(), chosen.getPartOfSpeech(), synonyms, antonyms);
+    }
 
 }
