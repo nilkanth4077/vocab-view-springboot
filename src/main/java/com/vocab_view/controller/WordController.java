@@ -37,18 +37,6 @@ public class WordController {
         return ResponseEntity.ok(wordService.getSynonymsAndAntonyms(word));
     }
 
-//    @PostMapping
-//    public ResponseEntity<?> addWord(@RequestBody AddWordRequest request) {
-//        return ResponseEntity.ok(
-//                wordService.addWord(
-//                        request.getText(),
-//                        request.getPartOfSpeech(),
-//                        request.getSynonymReference(),
-//                        request.getAntonymReference()
-//                )
-//        );
-//    }
-
     @PostMapping
     public ResponseEntity<List<Word>> addWords(
             @RequestBody BulkWordRequest request) {
@@ -61,7 +49,8 @@ public class WordController {
                 request.getWords(),
                 request.getPartOfSpeech(),
                 request.getSynonymReference(),
-                request.getAntonymReference()
+                request.getAntonymReference(),
+                request.getMeaning()
         );
 
         return ResponseEntity.ok(saved);

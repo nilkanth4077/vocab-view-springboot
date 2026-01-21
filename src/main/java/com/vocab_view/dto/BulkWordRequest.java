@@ -15,5 +15,5 @@ public class BulkWordRequest {
     private String synonymReference;
     private String antonymReference;
     private String partOfSpeech;
-
+    private String meaning;
 }

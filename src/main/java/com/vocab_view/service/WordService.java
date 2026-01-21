@@ -3,23 +3,27 @@ package com.vocab_view.service;
 import com.vocab_view.components.KeyGenerator;
 import com.vocab_view.dto.WordDto;
 import com.vocab_view.dto.WordResponse;
+import com.vocab_view.entity.Meaning;
 import com.vocab_view.entity.Word;
+import com.vocab_view.repository.MeaningRepository;
 import com.vocab_view.repository.WordRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
+import java.util.stream.Collectors;
 
 @Service
 public class WordService {
 
     private final WordRepository wordRepository;
+    private final MeaningRepository meaningRepository;
     private final KeyGenerator keyGenerator;
     private final WordCacheService cache;
 
-    public WordService(WordRepository wordRepository, KeyGenerator keyGenerator, WordCacheService cache) {
+    public WordService(WordRepository wordRepository, MeaningRepository meaningRepository, KeyGenerator keyGenerator, WordCacheService cache) {
         this.wordRepository = wordRepository;
+        this.meaningRepository = meaningRepository;
         this.keyGenerator = keyGenerator;
         this.cache = cache;
     }
@@ -43,6 +47,11 @@ public class WordService {
                 .map(Word::getText)
                 .toList();
 
+        String meaning = meaningRepository
+                .findBySynonymKey(word.getSynonymKey())
+                .map(Meaning::getMeaning)
+                .orElse(null);
+
         WordDto res = new WordDto();
         res.setWord(wordText);
         res.setPartOfSpeech(word.getPartOfSpeech());
@@ -52,91 +61,41 @@ public class WordService {
         return res;
     }
 
-//    public Word addWord(String text,
-//                        String partOfSpeech,
-//                        String synonymReference,
-//                        String antonymReference) {
-//
-//        if (wordRepository.findByTextIgnoreCase(text).isPresent()) {
-//            throw new RuntimeException("Word already exists");
-//        }
-//
-//        Word word = new Word();
-//        word.setText(text.toLowerCase());
-//        word.setPartOfSpeech(partOfSpeech);
-//
-//        // 1️⃣ Synonym reference
-//        if (synonymReference != null) {
-//
-//            Word ref = wordRepository.findByTextIgnoreCase(synonymReference)
-//                    .orElseThrow(() -> new RuntimeException("Synonym reference not found"));
-//
-//            word.setSynonymKey(ref.getSynonymKey());
-//            word.setAntonymKey(ref.getAntonymKey());
-//        }
-//
-//        // 2️⃣ Antonym reference (CRITICAL FIX)
-//        else if (antonymReference != null) {
-//
-//            Word ref = wordRepository.findByTextIgnoreCase(antonymReference)
-//                    .orElseThrow(() -> new RuntimeException("Antonym reference not found"));
-//
-//            word.setSynonymKey(ref.getAntonymKey());
-//            word.setAntonymKey(ref.getSynonymKey());
-//        }
-//
-//        // 3️⃣ Brand new word
-//        else {
-//            String synKey = keyGenerator.generateSynonymKey();
-//            String antKey = keyGenerator.generateAntonymKey();
-//
-//            word.setSynonymKey(synKey);
-//            word.setAntonymKey(antKey);
-//        }
-//
-//        Word saved = wordRepository.save(word);
-//        cache.refreshCache();
-//        return saved;
-//    }
-
     public List<WordResponse> getAllWords() {
+
+        Map<String, String> meaningMap =
+                meaningRepository.findAll()
+                        .stream()
+                        .collect(Collectors.toMap(
+                                Meaning::getSynonymKey,
+                                Meaning::getMeaning
+                        ));
+
         return wordRepository.findAll()
                 .stream()
                 .map(word -> new WordResponse(
                         word.getText(),
                         word.getPartOfSpeech(),
                         word.getSynonymKey(),
-                        word.getAntonymKey()
+                        word.getAntonymKey(),
+                        meaningMap.get(word.getSynonymKey())
                 ))
                 .toList();
-    }
-
-    public Word addWord(String text,
-                        String partOfSpeech,
-                        String synonymReference,
-                        String antonymReference) {
-
-        List<Word> saved = addWordsInternal(
-                List.of(text),
-                partOfSpeech,
-                synonymReference,
-                antonymReference
-        );
-
-        return saved.get(0);
     }
 
     // ✅ Bulk-word API
     public List<Word> addWordsBulk(List<String> words,
                                    String partOfSpeech,
                                    String synonymReference,
-                                   String antonymReference) {
+                                   String antonymReference,
+                                   String meaning) {
 
         return addWordsInternal(
                 words,
                 partOfSpeech,
                 synonymReference,
-                antonymReference
+                antonymReference,
+                meaning
         );
     }
 
@@ -144,7 +103,8 @@ public class WordService {
     private List<Word> addWordsInternal(List<String> words,
                                         String partOfSpeech,
                                         String synonymReference,
-                                        String antonymReference) {
+                                        String antonymReference,
+                                        String meaning) {
 
         // 🔍 Duplicate check
         for (String text : words) {
@@ -155,6 +115,16 @@ public class WordService {
 
         // 🔑 Resolve keys ONCE
         KeyPair keys = resolveKeys(synonymReference, antonymReference);
+
+        if (meaning != null && !meaning.isBlank()) {
+            meaningRepository.findBySynonymKey(keys.synonymKey())
+                    .orElseGet(() -> {
+                        Meaning m = new Meaning();
+                        m.setSynonymKey(keys.synonymKey());
+                        m.setMeaning(meaning.trim());
+                        return meaningRepository.save(m);
+                    });
+        }
 
         List<Word> entities = words.stream().map(text -> {
             Word word = new Word();

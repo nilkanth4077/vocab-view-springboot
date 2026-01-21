@@ -14,4 +14,5 @@ public class WordDto {
     private String partOfSpeech;
     private List<String> synonyms;
     private List<String> antonyms;
+    private String meaning;
 }

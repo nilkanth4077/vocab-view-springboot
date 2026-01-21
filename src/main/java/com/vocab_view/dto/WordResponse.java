@@ -13,5 +13,5 @@ public class WordResponse {
     private String partOfSpeech;
     private String synonymKey;
     private String antonymKey;
-
+    private String meaning;
 }
