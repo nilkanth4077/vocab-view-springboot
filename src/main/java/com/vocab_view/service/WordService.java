@@ -57,6 +57,7 @@ public class WordService {
         res.setPartOfSpeech(word.getPartOfSpeech());
         res.setSynonyms(synonyms);
         res.setAntonyms(antonyms);
+        res.setMeaning(meaning);
 
         return res;
     }
