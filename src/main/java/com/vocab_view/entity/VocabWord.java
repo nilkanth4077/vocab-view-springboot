@@ -42,4 +42,7 @@ public class VocabWord {
     private String hint;
 
     private String extraInfo;
+
+    @Column(nullable = false)
+    private Boolean isFrequent = false;
 }

@@ -15,6 +15,7 @@ public class VocabWordResponse {
 
     private Long id;
     private String word;
+    private Boolean isFrequent;
     private String partOfSpeech;
     private String hindiMeaning;
     private String englishMeaning;

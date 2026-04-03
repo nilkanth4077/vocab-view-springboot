@@ -20,6 +20,7 @@ public class VocabWordServiceImpl implements VocabWordService {
 
         VocabWord word = VocabWord.builder()
                 .word(request.getWord().toLowerCase())
+                .isFrequent(request.getIsFrequent())
                 .partOfSpeech(request.getPartOfSpeech())
                 .hindiMeaning(request.getHindiMeaning())
                 .englishMeaning(request.getEnglishMeaning())
